@@ -1,0 +1,7 @@
+{
+	"name": "NoFireWithAI",
+	"context": "..",
+	"dockerFile": "../Dockerfile",
+	"settings": {},
+	"extensions": []
+}
