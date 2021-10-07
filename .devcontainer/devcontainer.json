@@ -1,7 +1,6 @@
 {
 	"name": "NoFireWithAI",
-	"context": "..",
-	"dockerFile": "../Dockerfile",
+	"image": "antiguru11/competitions:nofirewithai",
 	"settings": {},
 	"extensions": []
 }
