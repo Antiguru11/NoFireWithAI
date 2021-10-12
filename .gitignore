@@ -1,2 +1,10 @@
+# data files
 input/*
 output/*
+
+# python
+__pycache__
+.ipynb_checkpoints
+
+# logs
+logs
