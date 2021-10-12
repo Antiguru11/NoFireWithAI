@@ -3,8 +3,7 @@ import logging
 import argparse
 from datetime import datetime
 
-from .prepare_data import get_dwh
-from competition.warehouse import Engine
+from competition.warehouse import Engine, get_dwh
 
 
 if __name__ == '__main__':
@@ -16,7 +15,7 @@ if __name__ == '__main__':
                         level=getattr(logging, args['log'].upper(), None))
 
     # prepare_data
-    engine = get_dwh()
+    engine = get_dwh('input')
 
     # compute features
     # fit pipeline
