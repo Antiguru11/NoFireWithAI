@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime
 
 from competition.warehouse import Engine, get_dwh
+from competition.featurise import Featuriser
 
 
 if __name__ == '__main__':
@@ -18,5 +19,9 @@ if __name__ == '__main__':
     engine = get_dwh('input')
 
     # compute features
+    train_df = Featuriser(engine, 'train', 'target_base').get_features({'dates_features': {}})
+    print(train_df.head())
+    test_df = Featuriser(engine, 'sample_test', ).get_features({'dates_features': {}})
+    print(test_df.head())
     # fit pipeline
     # submit
