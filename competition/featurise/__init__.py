@@ -1,3 +1,5 @@
+import sys
+import inspect
 from typing import Dict
 
 import pandas as pd
@@ -7,9 +9,14 @@ from ..warehouse import Engine
 
 
 class Featuriser():
-    _calcers = {c.name: c for c in [SampleCalcer,
-                                    DatesFeaturesCalcer,
-                                    TargetBaseCalcer]}
+    _calcers = dict()
+
+    @staticmethod
+    def register_calcers():
+        for name, obj in inspect.getmembers(sys.modules[__name__]):
+            if name.endswith('Calcer') and name != 'CalcerBase':
+                Featuriser._calcers[obj.name] = obj
+                
 
     def __init__(self,
                  engine: Engine,
@@ -18,6 +25,8 @@ class Featuriser():
                  target_args: Dict[str, object] = {}) -> None:
         self.engine = engine
         self.sample_table = sample_table
+        Featuriser.register_calcers()
+
         self.sample_calcer = self.create_calcer('sample')
         self.target_calcer = None
         if target_name is not None:
