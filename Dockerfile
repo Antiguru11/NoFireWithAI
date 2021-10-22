@@ -22,6 +22,6 @@ RUN wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.22
 COPY requirements.txt .
 RUN pip install -r requirements.txt && python3 -m cfgrib selfcheck
 
-USER user
+# USER user
 
 RUN pip install ipykernel --user
