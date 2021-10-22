@@ -1,6 +1,7 @@
 # data files
 input/*
 output/*
+dwh/*
 
 # python
 __pycache__

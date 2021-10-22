@@ -22,10 +22,6 @@ RUN wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.22
 COPY requirements.txt .
 RUN pip install -r requirements.txt && python3 -m cfgrib selfcheck
 
-RUN source activate base \
-    && conda install -c conda-forge --name base --update-deps --force-reinstall ipykernel -y \
-    && pip install --user --upgrade \
-       pandas \
-       "dask[dataframe]" 
-
 USER user
+
+RUN pip install ipykernel --user
