@@ -8,7 +8,8 @@ from sklearn.neighbors import KDTree
 
 from .base import CalcerBase, GeoBaseCalcer
 from ..warehouse import Engine
-from ..utils import (grid_n_rows,
+from ..utils import (era5_all_metrics,
+                     grid_n_rows,
                      grid_n_columns,
                      set_grid_index,
                      make_pooling, )
@@ -95,13 +96,13 @@ class GribFeaturesCalcer(CalcerBase):
                  'mean': np.nanmean, }
 
     def __init__(self, engine: Engine,
-                 metric: str, 
+                 metrics: Union[str, List[str]], 
                  pooling_size: int,
                  lags: List[int],
                  agg_funcs: List[str]) -> None:
         super().__init__(engine)
 
-        self.metric = metric
+        self.metrics = metrics if metrics != '*' else era5_all_metrics
         self.pooling_size = pooling_size
         self.lags = lags
         self.agg_funcs = agg_funcs
@@ -124,59 +125,60 @@ class GribFeaturesCalcer(CalcerBase):
                                                             name='grid_index'))
 
         features_df = sample_df.copy()
+        
+        for metric in self.metrics:
+            parts = list()
+            for year in years:
+                grib_ds = (self.engine
+                           .get_table(f'{metric}_{year}'))
 
-        parts = list()
-        for year in years:
-            grib_ds = (self.engine
-                       .get_table(f'{self.metric}_{year}'))
+                set_grid_index(grib_ds,
+                               lon_col='longitude', 
+                               lat_col='latitude', )
 
-            set_grid_index(grib_ds,
-                           lon_col='longitude', 
-                           lat_col='latitude', )
+                for dt, group_ds in grib_ds.groupby(grib_ds['time'].dt.date):
+                    if not dt in dates:
+                        continue
 
-            for dt, group_ds in grib_ds.groupby(grib_ds['time'].dt.date):
-                if not dt in dates:
-                    continue
+                    group_df = (group_ds
+                                .to_dataframe()
+                                .groupby('grid_index')[list(grib_ds.keys())[:-1]].mean())
+                    group_df = all_grid_idxs_df.join(group_df, how='left')
 
-                group_df = (group_ds
-                            .to_dataframe()
-                            .groupby('grid_index')[list(grib_ds.keys())[:-1]].mean())
-                group_df = all_grid_idxs_df.join(group_df, how='left')
+                    for column in group_df.columns:
+                        for func in self.agg_funcs:
+                            name = f'{metric}_{column}_ws{self.pooling_size}_{func}'
+                            group_df.loc[:, name] = make_pooling(group_df[column].values,
+                                                                 self.pooling_size,
+                                                                 self.ufunc_map[func])
+                        del group_df[column]
 
-                for column in group_df.columns:
-                    for func in self.agg_funcs:
-                        name = f'{self.metric}_{column}_ws{self.pooling_size}_{func}'
-                        group_df.loc[:, name] = make_pooling(group_df[column].values,
-                                                             self.pooling_size,
-                                                             self.ufunc_map[func])
-                    del group_df[column]
+                    group_df = (group_df
+                                .loc[(group_df.notna().any(axis=1) 
+                                     & group_df.index.isin(grid_idxs)), :]
+                                .reset_index()
+                                .assign(dt=str(dt)))
+                        
+                    parts.append(group_df)
 
-                group_df = (group_df
-                            .loc[(group_df.notna().any(axis=1) 
-                                  & group_df.index.isin(grid_idxs)), :]
-                            .reset_index()
-                            .assign(dt=str(dt)))
+            metric_df = pd.concat(parts)
+            columns = list(set(metric_df.columns) - set(self.keys))
+
+            del parts
+            gc.collect()
+
+            for lag in self.lags:
+                features_df['dt'] = ((pd.to_datetime(sample_df['dt']) - pd.DateOffset(lag))
+                                     .dt.strftime('%Y-%m-%d'))
                     
-                parts.append(group_df)
+                features_df = (features_df
+                               .merge(metric_df.rename(columns={c: f'{c}_lag_{lag}' 
+                                                                for c in columns}),
+                                      how='left',
+                                      on=['dt', 'grid_index'], ))
 
-        metric_df = pd.concat(parts)
-        columns = list(set(metric_df.columns) - set(self.keys))
-
-        del parts
-        gc.collect()
-
-        for lag in self.lags:
-            features_df['dt'] = ((pd.to_datetime(sample_df['dt']) - pd.DateOffset(lag))
-                                 .dt.strftime('%Y-%m-%d'))
-                
-            features_df = (features_df
-                           .merge(metric_df.rename(columns={c: f'{c}_lag_{lag}' 
-                                                            for c in columns}),
-                                  how='left',
-                                  on=['dt', 'grid_index'], ))
-
-        del metric_df 
-        gc.collect()
+            del metric_df 
+            gc.collect()
         
         features_df.loc[:, 'dt'] = sample_df['dt']
         return features_df
