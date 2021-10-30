@@ -19,40 +19,27 @@ class Featuriser():
                 
 
     def __init__(self,
-                 engine: Engine,
-                 sample_table: str,
-                 target_name: str = None,
-                 target_args: Dict[str, object] = {}) -> None:
-        self.engine = engine
-        self.sample_table = sample_table
+                 engine: Engine, ) -> None:
         Featuriser.register_calcers()
 
-        self.sample_calcer = self.create_calcer('sample')
-        self.target_calcer = None
-        if target_name is not None:
-            self.target_calcer = self.create_calcer(target_name,
-                                                    target_args, )
+        self.engine = engine
 
     def create_calcer(self, name: str, args: Dict[str, object] = {}) -> CalcerBase:
         args['engine'] = self.engine
-        args['sample_table'] = self.sample_table
 
         return self._calcers[name](**args)
 
     
     def get_features(self,
                      config: Dict[str, Dict[str, object]],)-> pd.DataFrame:
-        keys = self.sample_calcer.keys
-        features_dd = self.sample_calcer.compute()           
+        keys = ['dt', 'grid_index']
+        dataframes = list()   
         for name, args in config.items():
             calcer = self.create_calcer(name, args)
-            features_dd = features_dd.merge(calcer.compute(),
-                                            how='left',
-                                            on=keys)
+            dataframes.append(calcer.compute())
 
-        if self.target_calcer is not None:
-            features_dd = features_dd.merge(self.target_calcer.compute(),
-                                            how='inner',
-                                            on=keys)
+        features_df = dataframes[0]
+        for df in dataframes[1:]:
+            features_df = features_df.merge(df, how='outer', on=keys)
 
-        return features_dd.compute()
+        return features_df
