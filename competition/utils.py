@@ -9,8 +9,6 @@ import geopandas as gpd
 era5_all_metrics = ['evaporation1', 'evaporation2',
                     'heat1', 'heat2',
                     'temp', 'vegetation', 'wind', ]
-
-
 era5_all_years = [2018, 2019, 2020, 2021, ]
 
 
@@ -21,6 +19,8 @@ grib_lat_max = 81.5
 
 
 grid_step = 0.2
+grid_n_rows = int(np.ceil((grib_lat_max - grib_lat_min) / grid_step))
+grid_n_columns = int(np.ceil((grib_lon_max - grib_lon_min) / grid_step))
 
 
 def set_grid_index(data: Union[pd.DataFrame, xa.Dataset, gpd.GeoDataFrame], 
@@ -38,18 +38,14 @@ def set_grid_index(data: Union[pd.DataFrame, xa.Dataset, gpd.GeoDataFrame],
 def make_pooling(array: np.ndarray,
                  kernel_size: int,
                  func: callable) -> np.ndarray:
-    n_columns = int(np.ceil((grib_lon_max - grib_lon_min) / grid_step))
-    n_rows = int(np.ceil((grib_lat_max - grib_lat_min) / grid_step))
+    input = np.full(shape=grid_n_rows * grid_n_columns,
+                    fill_value=np.nan,
+                    dtype=array.dtype)
 
-    input = np.full(n_rows * n_columns, np.nan)
-    if len(input) > len(array):
-        input[:len(array)] = array
-    elif len(input) < len(array):
-        input = array[:len(input)]
-    else:
-        input = array
+    min_len = min(len(input), len(array))
+    input[:min_len] = array[:min_len]
 
-    shape = (n_rows, n_columns)
+    shape = (grid_n_rows, grid_n_columns)
     padded = np.pad(input.reshape(shape),
                     pad_width=tuple([kernel_size // 2 for _ in shape]),
                     constant_values=np.nan)
@@ -60,5 +56,9 @@ def make_pooling(array: np.ndarray,
     pooling_strides = (padded.shape[1] * item_size, item_size, 
                        padded.shape[1] * item_size, item_size, )
     polling = as_strided(padded, shape=pooling_shape, strides=pooling_strides)
+
+    mask = (~np.isnan(polling)).any(axis=(2,3))
+    result = np.full(input.shape, np.nan, dtype=input.dtype)
+    result[mask.reshape(-1)] = func(polling[mask], axis=(1,2)).reshape(-1)
     
-    return func(polling, axis=(2,3)).reshape(-1)[:len(array)]
+    return result

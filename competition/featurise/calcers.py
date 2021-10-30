@@ -1,27 +1,17 @@
 import gc
-from abc import ABC, abstractmethod
 from typing import List, Union
 from datetime import timedelta
 
 import numpy as np
 import pandas as pd
+from sklearn.neighbors import KDTree
 
+from .base import CalcerBase, GeoBaseCalcer
 from ..warehouse import Engine
-from ..utils import (set_grid_index,
+from ..utils import (grid_n_rows,
+                     grid_n_columns,
+                     set_grid_index,
                      make_pooling, )
-
-
-class CalcerBase(ABC):
-    name = None
-    keys = ['dt', 'grid_index', ]
-
-    def __init__(self, engine: Engine) -> None:
-        super().__init__()
-        self.engine = engine
-
-    @abstractmethod
-    def compute(self) -> pd.DataFrame:
-        pass
 
 
 class DatesFeaturesCalcer(CalcerBase):
@@ -38,11 +28,62 @@ class DatesFeaturesCalcer(CalcerBase):
         return features_df
 
 
-class GeoFeaturesCalcer(CalcerBase):
-    name = 'geo_features'
+class GeoCatFeaturesCalcer(GeoBaseCalcer):
+    name = 'geo_cat_features'
 
     def compute(self) -> pd.DataFrame:
-        features_df = self.engine.get_table('geo')
+        sample_df = self.engine.get_table('sample')
+        geo_df = self.prepare_data()
+
+        features_df = (sample_df
+                       .loc[:, self.keys]
+                       .merge(geo_df,
+                              how='left',
+                              on='grid_index'))
+        features_df = (features_df
+                       .drop(columns=['city_lon', 'city_lat'])
+                       .rename(columns={c: f'geo_{c}' 
+                                        for c in features_df.columns[2:]}))
+
+        return features_df
+
+class GeoNeighborsFeaturesCalcer(GeoBaseCalcer):
+    name = 'geo_neighbors_features'
+
+    def __init__(self, engine: Engine, count_neighbors: int) -> None:
+        super().__init__(engine)
+        self.count_neighbors = count_neighbors
+
+    def compute(self) -> pd.DataFrame:
+        sample_df = self.engine.get_table('sample')
+        geo_df = self.prepare_data()
+
+        tree = KDTree(geo_df[['city_lon', 'city_lat']])
+        metrics = list()
+        for _, row in sample_df.iterrows():
+            lon_center = (row['lon_min'] + row['lon_max']) / 2
+            lat_center = (row['lat_min'] + row['lat_max']) / 2
+            dist, _ = tree.query([[lon_center, lat_center]],
+                                 k=self.count_neighbors)
+            if len(dist) > 0:
+                metrics.append((np.mean(dist),
+                                np.max(dist),
+                                np.min(dist), ))
+            else:
+                metrics.append((np.nan, ) * 3)
+        features_df = pd.DataFrame(metrics,
+                                   columns=['city_mean_distance',
+                                            'city_max_distance',
+                                            'city_min_distance', ],
+                                   index=sample_df.index)
+                                   
+        features_df = (sample_df
+                       .loc[:, self.keys]
+                       .join(features_df,
+                             how='left'))
+        features_df = (features_df
+                       .rename(columns={c: f'geo_cn{self.count_neighbors}_{c}' 
+                                        for c in features_df.columns[2:]}))
 
         return features_df
 
@@ -55,13 +96,13 @@ class GribFeaturesCalcer(CalcerBase):
 
     def __init__(self, engine: Engine,
                  metric: str, 
-                 window_size: int,
+                 pooling_size: int,
                  lags: List[int],
                  agg_funcs: List[str]) -> None:
         super().__init__(engine)
 
         self.metric = metric
-        self.window_size = window_size
+        self.pooling_size = pooling_size
         self.lags = lags
         self.agg_funcs = agg_funcs
 
@@ -79,6 +120,8 @@ class GribFeaturesCalcer(CalcerBase):
         dates = list(np.unique(dates))
         
         grid_idxs = list(sample_df['grid_index'].unique())
+        all_grid_idxs_df = pd.DataFrame(index=pd.RangeIndex(stop=grid_n_rows * grid_n_columns,
+                                                            name='grid_index'))
 
         features_df = sample_df.copy()
 
@@ -95,24 +138,26 @@ class GribFeaturesCalcer(CalcerBase):
                 if not dt in dates:
                     continue
 
-                agg_df = (group_ds
-                          .to_dataframe()
-                          .groupby('grid_index')[list(grib_ds.keys())[:-1]].mean())
+                group_df = (group_ds
+                            .to_dataframe()
+                            .groupby('grid_index')[list(grib_ds.keys())[:-1]].mean())
+                group_df = all_grid_idxs_df.join(group_df, how='left')
 
-                for column in agg_df.columns:
+                for column in group_df.columns:
                     for func in self.agg_funcs:
-                        name = f'{self.metric}_{column}_{func}'
-                        agg_df.loc[:, name] = make_pooling(agg_df[column].values,
-                                                           self.window_size,
-                                                           self.ufunc_map[func])
+                        name = f'{self.metric}_{column}_ws{self.pooling_size}_{func}'
+                        group_df.loc[:, name] = make_pooling(group_df[column].values,
+                                                             self.pooling_size,
+                                                             self.ufunc_map[func])
+                    del group_df[column]
 
-                agg_df = (agg_df
-                          .loc[(agg_df.notna().any(axis=1) 
-                                & agg_df.index.isin(grid_idxs)), :]
-                          .reset_index()
-                          .assign(dt=str(dt)))
+                group_df = (group_df
+                            .loc[(group_df.notna().any(axis=1) 
+                                  & group_df.index.isin(grid_idxs)), :]
+                            .reset_index()
+                            .assign(dt=str(dt)))
                     
-                parts.append(agg_df)
+                parts.append(group_df)
 
         metric_df = pd.concat(parts)
         columns = list(set(metric_df.columns) - set(self.keys))
@@ -122,7 +167,7 @@ class GribFeaturesCalcer(CalcerBase):
 
         for lag in self.lags:
             features_df['dt'] = ((pd.to_datetime(sample_df['dt']) - pd.DateOffset(lag))
-                                .dt.strftime('%Y-%m-%d'))
+                                 .dt.strftime('%Y-%m-%d'))
                 
             features_df = (features_df
                            .merge(metric_df.rename(columns={c: f'{c}_lag_{lag}' 

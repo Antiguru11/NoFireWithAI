@@ -1,0 +1,52 @@
+warehouse:
+  data_path: 'input/'
+  train: True
+  create_args:
+    use_geo: True
+    use_era5: True
+    era5_metrics: '*'
+    era5_years: '*'
+
+featurise:
+  calcers:
+    dates_features: {}
+    geo_cat_features: {}
+    geo_neighbors_features: 
+      count_neighbors: 5
+    grib_features: 
+      metric: evaporation1
+      pooling_size: 3
+      lags: [0, 1, 2, 3, ]
+      agg_funcs: ['max', 'mean']
+    grib_features: 
+      metric: evaporation2
+      pooling_size: 3
+      lags: [0, 1, 2, 3, ]
+      agg_funcs: ['max', 'mean']
+    grib_features: 
+      metric: heat1
+      pooling_size: 3
+      lags: [0, 1, 2, 3, ]
+      agg_funcs: ['max', 'mean']
+    grib_features: 
+      metric: heat2
+      pooling_size: 3
+      lags: [0, 1, 2, 3, ]
+      agg_funcs: ['max', 'mean']
+    grib_features: 
+      metric: temp
+      pooling_size: 3
+      lags: [0, 1, 2, 3, ]
+      agg_funcs: ['max', 'mean']
+    grib_features: 
+      metric: vegetation
+      pooling_size: 3
+      lags: [0, 1, 2, 3, ]
+      agg_funcs: ['max', 'mean']
+    grib_features: 
+      metric: wind
+      pooling_size: 3
+      lags: [0, 1, 2, 3, ]
+      agg_funcs: ['max', 'mean']
+    target_base': {}
+

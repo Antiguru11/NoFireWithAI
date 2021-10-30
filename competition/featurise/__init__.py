@@ -4,6 +4,7 @@ from typing import Dict
 
 import pandas as pd
 
+from .base import CalcerBase
 from .calcers import *
 from ..warehouse import Engine
 
@@ -14,7 +15,7 @@ class Featuriser():
     @staticmethod
     def register_calcers():
         for name, obj in inspect.getmembers(sys.modules[__name__]):
-            if name.endswith('Calcer') and name != 'CalcerBase':
+            if name.endswith('Calcer'):
                 Featuriser._calcers[obj.name] = obj
                 
 
