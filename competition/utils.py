@@ -1,3 +1,4 @@
+import re
 from typing import Union, Tuple
 
 import numpy as np
@@ -62,3 +63,7 @@ def make_pooling(array: np.ndarray,
     result[mask.reshape(-1)] = func(polling[mask], axis=(1,2)).reshape(-1)
     
     return result
+
+
+def camel2snake(name: str) -> str:
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()

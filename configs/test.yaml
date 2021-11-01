@@ -20,3 +20,17 @@ featurise:
       agg_funcs: ['max', 'mean']
     target_base: {}
 
+pipeline:
+  name: baseline_pipeline
+
+  estimators:
+    transformes: []
+    selectors: 
+      -
+        dummy_selector: {}
+    model:
+      cat_boost_classifier: {}
+
+  split: {}
+
+  search: {}
