@@ -1,7 +1,6 @@
 # data files
 input/*
-output/*
-dwh/*
+*.csv
 
 # python
 __pycache__
