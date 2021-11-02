@@ -1,10 +1,6 @@
 import os
-import gc
+import logging
 from typing import List, Union
-
-import cfgrib
-import xarray as xa
-import pandas as pd
 
 from .engine import Engine
 from ..utils import era5_all_metrics, era5_all_years
@@ -44,6 +40,7 @@ class Warehouse:
         return engine
 
     def append(self, engine: Engine, name: str, filename: str):
+        logging.info(f'Read data - {name}')
         path = os.path.join(self.data_path, filename)        
         engine.register_table(name, path)
 

@@ -1,5 +1,10 @@
-# data files
+# projects
 input/*
+output/*
+models/*
+submits/*
+
+# data files
 *.csv
 
 # python
@@ -8,3 +13,4 @@ __pycache__
 
 # logs
 logs
+catboost_info

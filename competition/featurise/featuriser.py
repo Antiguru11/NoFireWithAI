@@ -1,3 +1,5 @@
+import logging
+
 import pandas as pd
 
 from .base import CalcerBase
@@ -23,6 +25,7 @@ class Featuriser():
         keys = ['dt', 'grid_index']
         dataframes = list()   
         for name, args in config.items():
+            logging.info(f'Compute - {name}')
             calcer = self.create_calcer(name, args)
             dataframes.append(calcer.compute())
 

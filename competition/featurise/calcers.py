@@ -48,6 +48,7 @@ class GeoCatFeaturesCalcer(GeoBaseCalcer):
 
         return features_df
 
+
 class GeoNeighborsFeaturesCalcer(GeoBaseCalcer):
     name = 'geo_neighbors_features'
 
@@ -194,8 +195,7 @@ class TargetBaseCalcer(CalcerBase):
         target_df = sample_df.loc[:, self.keys + infires_col]
 
         for i in range(8, 0, -1):
-            target_df.loc[:, 'infire_day_num'] = target_df[f'infire_day_{i}'].where(target_df[f'infire_day_{i}'] != 1, i)
+            target_df.loc[target_df[f'infire_day_{i}'] == 1, 'infire_day_num'] = i
         target_df.loc[:, 'infire_day_num'] = target_df['infire_day_num'].fillna(0)
 
         return target_df
-

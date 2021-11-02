@@ -1,4 +1,4 @@
-import sys
+from typing import Union
 from inspect import getmembers, isclass
 from importlib import import_module
 
@@ -40,10 +40,20 @@ class Repository(object):
                 else:
                     self.register(None, obj)
 
-    def register(self, name: str, object: type) -> None:
+    def register(self, name: str, object_or_name: Union[type, str]) -> None:
+        obj = object_or_name
+        if isinstance(obj, str):
+            parts = obj.split('.')
+            module_name = '.'.join(parts[:-1])
+            class_name = parts[-1]
+
+            module = import_module(module_name)
+            obj = getattr(module, class_name)
+
         if name is None:
-            name = camel2snake(object.__name__)
-        self._objects[name] = object
+            name = camel2snake(obj.__name__)
+    
+        self._objects[name] = obj
 
     def get_object(self, name: str):
         return self._objects[name]

@@ -1,4 +1,3 @@
-import logging
 from typing import Union
 
 import pandas as pd
@@ -15,7 +14,6 @@ class Engine(object):
     def register_table(self,
                        name: str,
                        path: str) -> None:
-        logging.info(f'register {name}')
         if path.endswith('.csv'):
             self.tables[name] = pd.read_csv(path)
         elif path.endswith('.grib'):
