@@ -12,6 +12,6 @@ for year in 2018 2019 2020 2021
 do
     for file in temp wind vegetation heat1 heat2 evaporation1 evaporation2
     do
-        wget -O input/ERA5_data/${file}_${year}.csv https://dsworks.s3pd01.sbercloud.ru/aij2021/NoFireWithAI/${file}_${year}.grib
+        wget -O input/ERA5_data/${file}_${year}.grib https://dsworks.s3pd01.sbercloud.ru/aij2021/NoFireWithAI/${file}_${year}.grib
     done
 done

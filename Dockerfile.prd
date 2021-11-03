@@ -1,4 +1,4 @@
-FROM cr.msk.sbercloud.ru/aicloud-base-images/horovod-cuda10.1-tf2.3.0:latest
+FROM --platform=amd64 cr.msk.sbercloud.ru/aicloud-base-images/horovod-cuda10.1-tf2.3.0:latest
 
 USER root
 WORKDIR /app
@@ -19,7 +19,7 @@ RUN wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.22
     && mkdir build ; cd build ; cmake -DCMAKE_INSTALL_PREFIX=/usr ../eccodes-2.22.1-Source \
     && cd /app/build ; make -s -j 4; ctest ; make install
 
-COPY requirements.txt .
+COPY requirements-prd.txt requirements.txt
 RUN pip install -r requirements.txt && python3 -m cfgrib selfcheck
 
 USER user

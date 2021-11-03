@@ -1,0 +1,40 @@
+FROM --platform=amd64 ubuntu:18.04
+
+WORKDIR /root
+RUN apt-get update && apt-get install -y \
+    cmake \
+    git \
+    gfortran \
+    libgeos-dev \
+    libproj-dev \
+    proj-bin \
+    proj-data  \
+    wget \
+    curl 
+
+RUN curl -L -o miniconda.sh -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && chmod +x miniconda.sh \
+    && ./miniconda.sh -b -p /opt/conda \
+    && rm -f miniconda.sh 
+
+ENV PATH /opt/conda/bin:$PATH
+
+RUN activate base \
+    && conda install python=3.7.10 ipykernel -y \
+    && pip install --upgrade pip \
+    && pip install cmake --upgrade
+
+RUN wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.22.1-Source.tar.gz \
+    && tar -xzf eccodes-2.22.1-Source.tar.gz \
+    && mkdir build ; cd build ; cmake -DCMAKE_INSTALL_PREFIX=/usr ../eccodes-2.22.1-Source \
+    && cd /app/build ; make -s -j 4; ctest ; make install
+
+COPY requirements-dev.txt requirements.txt
+RUN activate base \
+    && pip install -r requirements.txt \
+    && python -m cfgrib selfcheck
+
+COPY startup.sh .
+COPY download.sh .
+
+RUN chmod +x startup.sh && chmod +x download.sh

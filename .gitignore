@@ -1,2 +1,16 @@
+# projects
 input/*
 output/*
+models/*
+submits/*
+
+# data files
+*.csv
+
+# python
+__pycache__
+.ipynb_checkpoints
+
+# logs
+logs
+catboost_info
