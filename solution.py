@@ -25,7 +25,7 @@ add_data_path = base_path / "additional_data/"
 
 
 if __name__ == "__main__":
-    with open('solution.yaml', 'r') as f:
+    with open(os.path.join(base_path, 'solution.yaml'), 'r') as f:
         config = yaml.load(f, yaml.Loader)
     
     repository = Repository()
@@ -33,7 +33,7 @@ if __name__ == "__main__":
         repository.register(name, type_name)
 
     engine = (Warehouse(input_path, train=False)
-              .create(config['warehouse']['create_args']))
+              .create(**config['warehouse']['create_args']))
 
     features_df = (Featuriser(engine, repository)
                    .get_features(config['featurise']['calcers']))

@@ -18,6 +18,7 @@ class BaselinePipeline(PipelineBase):
         super().__init__(seed)
         self.models = dict.fromkeys(['infire_day_num'] 
                                      + [f'infire_day_{i}' for i in range(1, 9, 1)])
+        self.features = None
 
     def fit(self, features_df: pd.DataFrame, config: dict, repository: Repository):
         logging.info(f'Fit pipeline')
@@ -25,9 +26,9 @@ class BaselinePipeline(PipelineBase):
         self.repository = repository
 
         targets = list(self.models.keys())
-        features = list(set(features_df.columns.tolist()) 
-                        - set(targets) 
-                        - set(['dt', 'grid_index']))
+        self.features = list(set(features_df.columns.tolist()) 
+                             - set(targets) 
+                             - set(['dt', 'grid_index']))
 
         targets_df = features_df.loc[:, targets[1:]]
         targets_df = (targets_df
@@ -41,7 +42,7 @@ class BaselinePipeline(PipelineBase):
         for i, target in enumerate(targets):
             logging.info(f'Fit - {target}')
 
-            X = features_df.loc[:, features]
+            X = features_df.loc[:, self.features]
             y = targets_df.loc[:, target]
 
             (X_train, X_test,
@@ -74,12 +75,9 @@ class BaselinePipeline(PipelineBase):
     def predict(self, features_df: pd.DataFrame) -> pd.DataFrame:
         logging.info(f'Pipeline predict')
 
-        features = list(set(features_df.columns.tolist()) 
-                        - set(['dt', 'grid_index']))
+        X = features_df.loc[:, self.features]
 
-        X = features_df.loc[:, features]
-
-        predicts_df = pd.DataFrame(index=features_df.index)
+        predicts_df = pd.DataFrame()
         for i in range(1, 9):
             name = f'infire_day_{i}'
             predicts_df.loc[:, name] = (self.models[name].predict_proba(X)[:, 1] > 0.51).astype(int)
@@ -97,6 +95,10 @@ class BaselinePipeline(PipelineBase):
 
     def save(self, path: str) -> None:
         logging.info(f'Save pipeline')
+
+        with open(os.path.join(path, 'features.pkl'), 'wb') as file:
+            pickle.dump(self.features, file)
+
         for name, model in self.models.items():
             with open(os.path.join(path, name + '.pkl'), 'wb') as file:
                 pickle.dump(model, file)
@@ -104,6 +106,10 @@ class BaselinePipeline(PipelineBase):
     def load(path: str, seed: int):
         logging.info(f'Load pipeline')
         pipeline = BaselinePipeline(seed)
+
+        with open(os.path.join(path, 'features.pkl'), 'rb') as file:
+            pipeline.features = pickle.load(file)
+
         for name in pipeline.models:
             with open(os.path.join(path, name + '.pkl'), 'rb') as file:
                 pipeline.models[name] = pickle.load(file)

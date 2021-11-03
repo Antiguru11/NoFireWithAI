@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def featurise(config: dict, repository: Repository) -> None:
     engine = (Warehouse(data_path=config['warehouse']['data_path'], train=True)
-              .create(config['warehouse']['create_args']))
+              .create(**config['warehouse']['create_args']))
     
     features_df = (Featuriser(engine, repository)
                    .get_features(config['featurise']['calcers']))
@@ -42,25 +42,32 @@ def train(config: dict, repository: Repository) -> None:
 def submit(config: dict, repository: Repository) -> None:
     name = config['name']
 
+    if os.path.exists(f'submits/{name}'):
+        os.system(f"rm -rf submits/{name} ")
+    os.system(f"mkdir -p submits/{name} ")
+
     calcers_config = config['featurise']['calcers']
     del calcers_config['target_base']
     config['featurise']['calcers'] = calcers_config
 
-    with open('solution.yaml', 'w') as f:
+    with open(f'submits/{name}/solution.yaml', 'w') as f:
         yaml.dump(config, f)
 
-    if os.path.exists('submits/{name}'):
-        os.system(f"rm -dR submits/{name} ")
-
-    os.system(f"mkdir -p submits/{name} "
-              f"&& mkdir -p submits/{name}/models "
+    os.system(f"mkdir -p submits/{name}/models "
               f"&& cp solution.py submits/{name}/solution.py "
               f"&& cp metadata.json submits/{name}/metadata.json "
-              f"&& cp solution.yaml submits/{name}/solution.yaml "
               f"&& cp -R competition submits/{name}/competition "
               f"&& cp -a models/{name}/* submits/{name}/models/ "
               f"&& cd submits/{name} "
-              f"&& zip -r {name}_submission.zip * "
+              "&& ln -s ../../input input"
+              "&& ln -s ../../output output"
+              "&& cd .. "
+              "&& cd .. "
+              f"&& python submits/{name}/solution.py"
+              f"&& rm submits/{name}/input "
+              f"&& rm submits/{name}/output "
+              f"&& cd submits/{name} "
+              f"&& zip -r {name}_submission.zip * -x */__pycache__/* "
               f"&& mv {name}_submission.zip ../{name}_submission.zip "
               "&& cd .."
               f"&& rm -dR {name} ")
