@@ -9,6 +9,7 @@ from sklearn.neighbors import KDTree
 from .base import CalcerBase, GeoBaseCalcer
 from ..warehouse import Engine
 from ..utils import (era5_all_metrics,
+                     era5_all_years,
                      grid_n_rows,
                      grid_n_columns,
                      set_grid_index,
@@ -130,6 +131,8 @@ class GribFeaturesCalcer(CalcerBase):
         for metric in self.metrics:
             parts = list()
             for year in years:
+                if year not in era5_all_years:
+                    continue
                 grib_ds = (self.engine
                            .get_table(f'{metric}_{year}'))
 

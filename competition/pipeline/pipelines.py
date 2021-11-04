@@ -4,8 +4,8 @@ import logging
 import pickle
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score
+from sklearn.model_selection import train_test_split, TimeSeriesSplit
+from sklearn.metrics import f1_score, precision_score
 
 from .base import PipelineBase
 from ..repository import Repository
@@ -19,16 +19,23 @@ class BaselinePipeline(PipelineBase):
         self.models = dict.fromkeys(['infire_day_num'] 
                                      + [f'infire_day_{i}' for i in range(1, 9, 1)])
         self.features = None
+        # self.cat_features = ['month',
+        #                      'week',
+        #                      'day_of_week', 'geo_place' ]
 
     def fit(self, features_df: pd.DataFrame, config: dict, repository: Repository):
         logging.info(f'Fit pipeline')
         self.config = config
         self.repository = repository
 
+        split_dt = pd.to_datetime(self.config['split_dt'])
+
         targets = list(self.models.keys())
         self.features = list(set(features_df.columns.tolist()) 
                              - set(targets) 
                              - set(['dt', 'grid_index']))
+
+        features_df = features_df.sort_values(by='dt', ascending=True)
 
         targets_df = features_df.loc[:, targets[1:]]
         targets_df = (targets_df
@@ -41,25 +48,31 @@ class BaselinePipeline(PipelineBase):
 
         for i, target in enumerate(targets):
             logging.info(f'Fit - {target}')
+            multiclass = target == 'infire_day_num'
 
             X = features_df.loc[:, self.features]
             y = targets_df.loc[:, target]
 
+            split_mask = pd.to_datetime(features_df['dt']) < split_dt
+
             (X_train, X_test,
-             y_train, y_test,) = train_test_split(X, y,
-                                                  test_size=0.3,
-                                                  stratify=y,
-                                                  random_state=self.seed)
+             y_train, y_test,) = (X.loc[split_mask, :], X.loc[~split_mask, :],
+                                  y[split_mask], y[~split_mask],)
             
-            pipeline = self.get_pipeline(config['estimators'], verbose=True)
-            pipeline.set_params(model__eval_metric='MultiClass' if target == 'infire_day_num' else 'F1',
+            pipeline = self.get_pipeline(config['estimators'])
+            pipeline.set_params(model__eval_metric='MultiClass' if multiclass else 'F1',
                                 model__random_seed=self.seed+i)
+            # pipeline.set_params(model__cat_features=[i 
+            #                                          for i, f in enumerate(self.features) 
+            #                                          if f in self.cat_features], )
             logging.info(f'Read pipeline - {pipeline}')
 
             spliter = self.get_splitter(config['split'])
             logging.info(f'Read spliter - {spliter}')
 
             searcher = self.get_searcher(config['search'])
+            if searcher is not None:
+                searcher.scoring = 'f1_micro' if multiclass else 'f1'
             logging.info(f'Read searcher - {searcher}')
 
             fit_params = config['fit_params']
@@ -70,8 +83,10 @@ class BaselinePipeline(PipelineBase):
                                          spliter,
                                          searcher,
                                          fit_params)
+            
             quality = f1_score(y_test, pipeline.predict(X_test),
-                               average='micro' if target == 'infire_day_num' else 'binary', )
+                               average='micro' if multiclass else 'binary')
+
             logging.info(f'Pipeline quality - {quality}')
 
             self.models[target] = pipeline

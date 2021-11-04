@@ -4,6 +4,7 @@ output/*
 models/*
 submits/*
 features/*
+solution_metro/*.zip
 
 # python
 __pycache__

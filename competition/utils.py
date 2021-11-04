@@ -1,3 +1,5 @@
+from datetime import datetime
+import os
 import re
 from typing import Union, Tuple
 
@@ -6,6 +8,7 @@ from numpy.lib.stride_tricks import as_strided
 import pandas as pd
 import xarray as xa
 import geopandas as gpd
+
 
 era5_all_metrics = ['evaporation1', 'evaporation2',
                     'heat1', 'heat2',

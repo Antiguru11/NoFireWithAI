@@ -9,11 +9,12 @@ from ..utils import era5_all_metrics, era5_all_years
 class Warehouse:
     def __init__(self,
                  data_path: str,
-                 train=True, ):
+                 train: bool = True, ):
         self.data_path = data_path
         self.train = train
 
     def create(self,
+               use_expanded_train: bool = False,
                use_geo: bool = True,
                use_era5: bool = True, 
                era5_metrics: Union[str, List[str]] = '*',
@@ -21,7 +22,10 @@ class Warehouse:
         engine = Engine()
 
         if self.train:
-            self.append(engine, 'sample', 'train.csv')
+            if use_expanded_train:
+                self.append(engine, 'sample', 'expanded_train.csv')
+            else:
+                self.append(engine, 'sample', 'train.csv')
         else:
             self.append(engine, 'sample', 'test.csv')
 
