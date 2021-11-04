@@ -19,23 +19,32 @@ logger = logging.getLogger(__name__)
 
 
 def featurise(config: dict, repository: Repository) -> None:
+    name = config['name']
+
     engine = (Warehouse(data_path=config['warehouse']['data_path'], train=True)
               .create(**config['warehouse']['create_args']))
     
     features_df = (Featuriser(engine, repository)
                    .get_features(config['featurise']['calcers']))
     
-    features_df.to_csv('features.csv', index=False)
+    features_df.to_csv(f'features/{name}_features.csv', index=False)
 
 
 def train(config: dict, repository: Repository) -> None:
-    features_df = pd.read_csv('features.csv')
+    name = config['name']
+    features_df = pd.read_csv(f'features/{name}_features.csv')
 
     pipeline = (repository
                 .get_object(config['pipeline']['name'])(config['pipeline']['seed']))
     
     pipeline.fit(features_df, config['pipeline'], repository)
-    pipeline.save(os.path.join('models', config['name']))
+
+    save_path = f'models/{name}'
+    if os.path.exists(save_path):
+        os.system(f'rm -rf {save_path}')
+    os.mkdir(save_path)
+
+    pipeline.save(save_path)
 
 
 
@@ -67,7 +76,7 @@ def submit(config: dict, repository: Repository) -> None:
               f"&& rm submits/{name}/input "
               f"&& rm submits/{name}/output "
               f"&& cd submits/{name} "
-              f"&& zip -r {name}_submission.zip * -x */__pycache__/* "
+              f"&& zip -r {name}_submission.zip * -x \"*/__pycache__/*\" "
               f"&& mv {name}_submission.zip ../{name}_submission.zip "
               "&& cd .."
               f"&& rm -dR {name} ")

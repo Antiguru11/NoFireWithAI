@@ -1,0 +1,60 @@
+name: more_data
+quality: 0.8864
+
+repository:
+  impute_transformer: sklearn.impute.SimpleImputer
+  ord_transformer: sklearn.preprocessing.OrdinalEncoder
+  var_selector: sklearn.feature_selection.VarianceThreshold
+  cat_boost_classifier: catboost.CatBoostClassifier
+
+warehouse:
+  data_path: 'input/'
+  create_args:
+    use_geo: True
+    use_era5: True
+    era5_metrics: '*'
+    era5_years: '*'
+
+featurise:
+  calcers:
+    dates_features: {}
+    geo_cat_features: {}
+    geo_neighbors_features: 
+      count_neighbors: 5
+    grib_features: 
+      metrics: '*'
+      pooling_size: 3
+      lags: [0, 1, 2, 3, ]
+      agg_funcs: ['max', 'mean']
+    target_base: {}
+
+pipeline:
+  name: baseline_pipeline
+  seed: 110894
+
+  estimators:
+    transformers:
+    - 
+      name: geo_place
+      columns: ['geo_place']
+      estimators:
+        impute_transformer: 
+          strategy: constant
+          fill_value: unknown
+        ord_transformer: 
+          handle_unknown: use_encoded_value
+          unknown_value: .nan
+    selectors: 
+      -
+        var_selector: {}
+    model:
+      cat_boost_classifier: 
+        iterations: 100
+        auto_class_weights: Balanced
+
+  fit_params: 
+    model__verbose_eval: False
+
+  split: {}
+
+  search: {}

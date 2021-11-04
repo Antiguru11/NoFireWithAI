@@ -54,9 +54,14 @@ class BaselinePipeline(PipelineBase):
             pipeline = self.get_pipeline(config['estimators'], verbose=True)
             pipeline.set_params(model__eval_metric='MultiClass' if target == 'infire_day_num' else 'F1',
                                 model__random_seed=self.seed+i)
+            logging.info(f'Read pipeline - {pipeline}')
 
             spliter = self.get_splitter(config['split'])
+            logging.info(f'Read spliter - {spliter}')
+
             searcher = self.get_searcher(config['search'])
+            logging.info(f'Read searcher - {searcher}')
+
             fit_params = config['fit_params']
 
             pipeline = self.fit_pipeline(X_train,
@@ -67,6 +72,7 @@ class BaselinePipeline(PipelineBase):
                                          fit_params)
             quality = f1_score(y_test, pipeline.predict(X_test),
                                average='micro' if target == 'infire_day_num' else 'binary', )
+            logging.info(f'Pipeline quality - {quality}')
 
             self.models[target] = pipeline
 

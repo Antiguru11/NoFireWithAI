@@ -1,7 +1,7 @@
 name: test
+quality: 0.83323
 
 repository:
-  fillna_transformer: sklearn.impute.SimpleImputer
   cat_boost_classifier: catboost.CatBoostClassifier
 
 warehouse:
@@ -15,14 +15,6 @@ warehouse:
 featurise:
   calcers:
     dates_features: {}
-    # geo_cat_features: {}
-    # geo_neighbors_features: 
-    #   count_neighbors: 5
-    # grib_features: 
-    #   metrics: '*'
-    #   pooling_size: 3
-    #   lags: [0, 1, 2, 3, ]
-    #   agg_funcs: ['max', 'mean']
     target_base: {}
 
 pipeline:
@@ -31,20 +23,11 @@ pipeline:
 
   estimators:
     transformers: []
-    # - 
-    #   name: geo_place
-    #   columns: ['geo_place']
-    #   estimators:
-    #   -
-    #     fillna_transformer:
-    #       strategy: constant
-    #       fill_value: NaN 
     selectors: 
       -
         dummy_selector: {}
     model:
       cat_boost_classifier: 
-        cat_features: [0, ]
         iterations: 10
         auto_class_weights: Balanced
 

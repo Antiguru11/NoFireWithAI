@@ -3,9 +3,7 @@ input/*
 output/*
 models/*
 submits/*
-
-# data files
-*.csv
+features/*
 
 # python
 __pycache__

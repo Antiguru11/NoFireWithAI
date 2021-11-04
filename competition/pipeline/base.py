@@ -41,8 +41,7 @@ class PipelineBase(ABC):
             tname, tcolumns, testimators = list(tconfig.values())
 
             tsteps = list()
-            for estimator in testimators:
-                ename, eargs = list(estimator.items())[0]
+            for ename, eargs in testimators.items():
                 tsteps.append((ename, self.repository.get_object(ename)(**eargs),))
             
             transformers.append((tname, _Pipeline(tsteps), tcolumns))
