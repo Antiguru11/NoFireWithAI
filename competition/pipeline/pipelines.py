@@ -135,3 +135,94 @@ class BaselinePipeline(PipelineBase):
             with open(os.path.join(path, name + '.pkl'), 'rb') as file:
                 pipeline.models[name] = pickle.load(file)
         return pipeline
+
+
+class LagsPipeline(PipelineBase):
+    name = 'lags_pipeline'
+
+    def __init__(self, seed: int) -> None:
+        super().__init__(seed)
+        self.model = None
+        self.features = None
+        # self.cat_features = ['month',
+        #                      'week',
+        #                      'day_of_week', 'geo_place' ]
+
+    def fit(self, features_df: pd.DataFrame, config: dict, repository: Repository):
+        logging.info(f'Fit pipeline')
+        self.config = config
+        self.repository = repository
+
+        targets = ['infire_day_num'] + [f'infire_day_{i}' for i in range(1, 9)]
+        self.features = list(sorted(set(features_df.columns.tolist()) 
+                                    - set(targets) 
+                                    - set(['dt', 'grid_index'])))
+
+        logging.info(f'Fit')
+        
+        X = features_df.loc[:, self.features]
+        y = features_df.loc[:, 'infire_day_num']
+
+        (X_train, X_test,
+         y_train, y_test,) = train_test_split(X, y,
+                                              stratify=y,
+                                              test_size=0.3,
+                                              random_state=self.seed)
+        
+        pipeline = self.get_pipeline(config['estimators'])
+        pipeline.set_params(model__random_seed=self.seed)
+        logging.info(f'Read pipeline - {pipeline}')
+
+        spliter = self.get_splitter(config['split'])
+        logging.info(f'Read spliter - {spliter}')
+
+        searcher = self.get_searcher(config['search'])
+        if searcher is not None:
+            searcher.scoring = 'precision'
+        logging.info(f'Read searcher - {searcher}')
+
+        fit_params = config['fit_params']
+
+        pipeline = self.fit_pipeline(X_train,
+                                     y_train,
+                                     pipeline,
+                                     spliter,
+                                     searcher,
+                                     fit_params)
+        
+        quality = f1_score(y_test, pipeline.predict(X_test), average='micro')
+        logging.info(f'Pipeline quality - {quality}')
+        self.model = pipeline
+
+        return self
+
+    def predict(self, features_df: pd.DataFrame) -> pd.DataFrame:
+        logging.info(f'Pipeline predict')
+
+        predicts_df = pd.DataFrame()
+        predicts_df['infire_day_num'] = self.model.predict(features_df.loc[:, self.features])
+        for i in range(1, 9):
+            predicts_df[f'infire_day_{i}'] = (predicts_df['infire_day_num'] == i).astype(int)
+        del predicts_df['infire_day_num']
+
+        return predicts_df
+
+    def save(self, path: str) -> None:
+        logging.info(f'Save pipeline')
+
+        with open(os.path.join(path, 'features.pkl'), 'wb') as file:
+            pickle.dump(self.features, file)
+
+        with open(os.path.join(path, 'model.pkl'), 'wb') as file:
+            pickle.dump(self.model, file)
+
+    def load(path: str, seed: int):
+        logging.info(f'Load pipeline')
+        pipeline = BaselinePipeline(seed)
+
+        with open(os.path.join(path, 'features.pkl'), 'rb') as file:
+            pipeline.features = pickle.load(file)
+
+        with open(os.path.join(path, 'model.pkl'), 'rb') as file:
+            pipeline.model = pickle.load(file)
+        return pipeline

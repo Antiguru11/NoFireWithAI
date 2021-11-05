@@ -188,6 +188,37 @@ class GribFeaturesCalcer(CalcerBase):
         return features_df
 
 
+class LagsFeaturesCalcer(CalcerBase):
+    name = 'lags_features'
+    def __init__(self, engine: Engine, lags: List[int]) -> None:
+        super().__init__(engine)
+        self.lags = lags
+
+    def compute(self) -> pd.DataFrame:
+        sample_df = self.engine.get_table('sample')
+        history_df = self.engine.get_table('history')
+        set_grid_index(history_df, 'lon', 'lat')
+
+        infire_nflag = history_df.groupby(['grid_index', 'dt']).size()
+        infire_nflag = (infire_nflag > 0).astype(int)
+        infire_nflag.name = 'infire'
+        infire_df = infire_nflag.reset_index()
+
+        target_df = sample_df.loc[:, self.keys].copy()
+        for lag in self.lags:
+            target_df['dt'] = ((pd.to_datetime(sample_df['dt']) - pd.DateOffset(lag))
+                               .dt.strftime('%Y-%m-%d'))
+
+            target_df = (target_df
+                         .merge(infire_df.rename(columns={'infire': f'infire_lag_day_{lag}'}),
+                                how='left',))
+
+        target_df['dt'] = sample_df.loc[:, 'dt']
+        target_df.fillna(0, inplace=True)
+
+        return target_df
+
+
 class TargetBaseCalcer(CalcerBase): 
     name = 'target_base'
 

@@ -21,6 +21,8 @@ class Warehouse:
                era5_years: Union[str, List[str]] = '*') -> Engine:
         engine = Engine()
 
+        self.append(engine, 'history', 'train_raw.csv')
+
         if self.train:
             if use_expanded_train:
                 self.append(engine, 'sample', 'expanded_train.csv')

@@ -47,7 +47,6 @@ def train(config: dict, repository: Repository) -> None:
     pipeline.save(save_path)
 
 
-
 def submit(config: dict, repository: Repository) -> None:
     name = config['name']
 
@@ -67,14 +66,14 @@ def submit(config: dict, repository: Repository) -> None:
               f"&& cp metadata.json submits/{name}/metadata.json "
               f"&& cp -R competition submits/{name}/competition "
               f"&& cp -a models/{name}/* submits/{name}/models/ "
-              f"&& cd submits/{name} "
-              "&& ln -s ../../input input"
-              "&& ln -s ../../output output"
-              "&& cd .. "
-              "&& cd .. "
-              f"&& python submits/{name}/solution.py"
-              f"&& rm submits/{name}/input "
-              f"&& rm submits/{name}/output "
+            #   f"&& cd submits/{name} "
+            #   "&& ln -s ../../input input"
+            #   "&& ln -s ../../output output"
+            #   "&& cd .. "
+            #   "&& cd .. "
+            #   f"&& python submits/{name}/solution.py"
+            #   f"&& rm submits/{name}/input "
+            #   f"&& rm submits/{name}/output "
               f"&& cd submits/{name} "
               f"&& zip -r {name}_submission.zip * -x \"*/__pycache__/*\" "
               f"&& mv {name}_submission.zip ../{name}_submission.zip "
